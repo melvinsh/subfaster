@@ -46,6 +46,7 @@ import (
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/securitytrails"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/shodan"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/sitedossier"
+	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/submd"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/threatbook"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/threatcrowd"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/virustotal"
@@ -97,11 +98,12 @@ var AllSources = [...]subscraping.Source{
 	&whoisxmlapi.Source{},
 	&zoomeyeapi.Source{},
 	&facebook.Source{},
-	// &threatminer.Source{}, // failing  api
+	// &threatminer.Source{}, // failing api
 	// &reconcloud.Source{}, // failing due to cloudflare bot protection
 	&builtwith.Source{},
 	&hudsonrock.Source{},
 	&digitalyama.Source{},
+	&submd.Source{},
 }
 
 var sourceWarnings = mapsutil.NewSyncLockMap[string, string](
