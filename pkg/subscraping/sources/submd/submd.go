@@ -40,6 +40,10 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		}
 		defer session.DiscardHTTPResponse(resp)
 
+		if resp.StatusCode != http.StatusOK {
+			return
+		}
+
 		sc := bufio.NewScanner(resp.Body)
 		for sc.Scan() {
 			if line := sc.Text(); line != "" {
@@ -54,8 +58,12 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			}
 		}
 		if err := sc.Err(); err != nil {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
-			s.errors++
+			select {
+			case <-ctx.Done():
+				return
+			case results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}:
+				s.errors++
+			}
 		}
 	}()
 
