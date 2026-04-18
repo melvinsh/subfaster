@@ -34,6 +34,9 @@ type DomainsCountResponse struct {
 	Count int `json:"count"`
 }
 
+// Community-tier download cap; see #1765.
+const communityDownloadCap = 200
+
 // Source is the passive scraping agent
 type Source struct {
 	apiKeys   []string
@@ -75,8 +78,8 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 			s.errors++
 			return
-		} else if resp1.StatusCode != 200 {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("request rate limited with status code %d", resp1.StatusCode)}
+		} else if resp1.StatusCode != http.StatusOK {
+			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("netlas count endpoint returned status %d", resp1.StatusCode)}
 			s.errors++
 			return
 		}
@@ -89,7 +92,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 
 		body, err := io.ReadAll(resp1.Body)
 		if err != nil {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("error reading ressponse body")}
+			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("error reading response body")}
 			s.errors++
 			return
 		}
@@ -111,7 +114,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			"q":           query,
 			"fields":      []string{"*"},
 			"source_type": "include",
-			"size":        domainsCount.Count,
+			"size":        min(domainsCount.Count, communityDownloadCap),
 		}
 		jsonRequestBody, err := json.Marshal(requestBody)
 		if err != nil {
@@ -139,15 +142,16 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 				s.errors++
 			}
 		}()
-		body, err = io.ReadAll(resp2.Body)
-		if err != nil {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("error reading ressponse body")}
+
+		if resp2.StatusCode != http.StatusOK {
+			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("netlas download endpoint returned status %d", resp2.StatusCode)}
 			s.errors++
 			return
 		}
 
-		if resp2.StatusCode == 429 {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("request rate limited with status code %d", resp2.StatusCode)}
+		body, err = io.ReadAll(resp2.Body)
+		if err != nil {
+			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("error reading response body")}
 			s.errors++
 			return
 		}
