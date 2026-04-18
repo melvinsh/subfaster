@@ -77,10 +77,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		if err != nil {
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 			s.errors++
-			return
-		} else if resp1.StatusCode != http.StatusOK {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("netlas count endpoint returned status %d", resp1.StatusCode)}
-			s.errors++
+			session.DiscardHTTPResponse(resp1)
 			return
 		}
 		defer func() {
@@ -134,6 +131,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		if err != nil {
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 			s.errors++
+			session.DiscardHTTPResponse(resp2)
 			return
 		}
 		defer func() {
@@ -142,12 +140,6 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 				s.errors++
 			}
 		}()
-
-		if resp2.StatusCode != http.StatusOK {
-			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: fmt.Errorf("netlas download endpoint returned status %d", resp2.StatusCode)}
-			s.errors++
-			return
-		}
 
 		body, err = io.ReadAll(resp2.Body)
 		if err != nil {
