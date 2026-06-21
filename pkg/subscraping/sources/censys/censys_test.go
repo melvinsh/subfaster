@@ -2,41 +2,25 @@ package censys
 
 import (
 	"context"
-	"math"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/projectdiscovery/ratelimit"
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// createTestMultiRateLimiter creates a MultiLimiter for testing
-func createTestMultiRateLimiter(ctx context.Context) *ratelimit.MultiLimiter {
-	mrl, _ := ratelimit.NewMultiLimiter(ctx, &ratelimit.Options{
-		Key:         "censys",
-		IsUnlimited: false,
-		MaxCount:    math.MaxInt32,
-		Duration:    time.Millisecond,
-	})
-	return mrl
-}
 
 func TestCensysSource_NoApiKey(t *testing.T) {
 	source := &Source{}
 	// Don't add any API keys
 
 	ctx := context.Background()
-	multiRateLimiter := createTestMultiRateLimiter(ctx)
 	session := &subscraping.Session{
-		Client:           http.DefaultClient,
-		MultiRateLimiter: multiRateLimiter,
+		Client: http.DefaultClient,
 	}
 
-	ctxWithValue := context.WithValue(ctx, subscraping.CtxSourceArg, "censys")
-	results := source.Run(ctxWithValue, "example.com", session)
+	results := source.Run(ctx, "example.com", session)
 
 	// Collect all results
 	var resultCount int
@@ -56,17 +40,14 @@ func TestCensysSource_ContextCancellation(t *testing.T) {
 	source.AddApiKeys([]string{"test_pat:test_org_id"})
 
 	ctx := context.Background()
-	multiRateLimiter := createTestMultiRateLimiter(ctx)
 	session := &subscraping.Session{
-		Client:           http.DefaultClient,
-		MultiRateLimiter: multiRateLimiter,
+		Client: http.DefaultClient,
 	}
 
 	// Create a context that will be cancelled
 	ctxCancellable, cancel := context.WithCancel(ctx)
-	ctxWithValue := context.WithValue(ctxCancellable, subscraping.CtxSourceArg, "censys")
 
-	results := source.Run(ctxWithValue, "example.com", session)
+	results := source.Run(ctxCancellable, "example.com", session)
 
 	// Cancel immediately
 	cancel()
@@ -94,7 +75,7 @@ func TestCensysSource_Metadata(t *testing.T) {
 	assert.Equal(t, "censys", source.Name())
 	assert.True(t, source.IsDefault())
 	assert.False(t, source.HasRecursiveSupport())
-	assert.True(t, source.NeedsKey())
+	assert.Equal(t, subscraping.RequiredKey, source.KeyRequirement())
 }
 
 func TestCensysSource_AddApiKeys(t *testing.T) {

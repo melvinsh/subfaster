@@ -11,14 +11,14 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/corpix/uarand"
-	"github.com/projectdiscovery/ratelimit"
-
 	"github.com/projectdiscovery/gologger"
 )
 
+// userAgent is the fixed User-Agent sent with every request.
+const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+
 // NewSession creates a new session object for a domain
-func NewSession(domain string, proxy string, multiRateLimiter *ratelimit.MultiLimiter, timeout int) (*Session, error) {
+func NewSession(domain string, proxy string, timeout int) (*Session, error) {
 	Transport := &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 100,
@@ -48,9 +48,6 @@ func NewSession(domain string, proxy string, multiRateLimiter *ratelimit.MultiLi
 
 	session := &Session{Client: client, Timeout: timeout}
 
-	// Initiate rate limit instance
-	session.MultiRateLimiter = multiRateLimiter
-
 	// Create a new extractor object for the current domain
 	extractor, err := NewSubdomainExtractor(domain)
 	session.Extractor = extractor
@@ -66,6 +63,31 @@ func (s *Session) Get(ctx context.Context, getURL, cookies string, headers map[s
 // SimpleGet makes a simple GET request to a URL
 func (s *Session) SimpleGet(ctx context.Context, getURL string) (*http.Response, error) {
 	return s.HTTPRequest(ctx, http.MethodGet, getURL, "", map[string]string{}, nil, BasicAuth{})
+}
+
+// preflightTimeout bounds the homepage probe used to detect connection-level
+// blocks before spending a full request (or API quota) on the real endpoint.
+const preflightTimeout = 3 * time.Second
+
+// Preflight probes probeURL (a source's homepage, so it costs no API quota)
+// with a short timeout. It returns an error if the host is unreachable within
+// the probe window, letting a source bail out fast instead of hanging on a
+// blocked endpoint for the full request timeout. It is not rate-limited.
+func (s *Session) Preflight(ctx context.Context, probeURL string) error {
+	ctx, cancel := context.WithTimeout(ctx, preflightTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	client := &http.Client{Timeout: preflightTimeout, Transport: s.Client.Transport}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.Body.Close()
 }
 
 // Post makes a POST request to a URL with extended parameters
@@ -85,10 +107,14 @@ func (s *Session) HTTPRequest(ctx context.Context, method, requestURL, cookies s
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", uarand.GetRandom())
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "en")
-	req.Header.Set("Connection", "close")
+	// Keep connections alive so sources making many sequential requests to the
+	// same host (e.g. thc paginates ~268x) reuse the TCP+TLS connection instead
+	// of paying a fresh handshake (~70ms) per request. The Transport pools idle
+	// conns (MaxIdleConnsPerHost) — "Connection: close" here would defeat that.
+	req.Header.Set("Connection", "keep-alive")
 
 	if basicAuth.Username != "" || basicAuth.Password != "" {
 		req.SetBasicAuth(basicAuth.Username, basicAuth.Password)
@@ -100,12 +126,6 @@ func (s *Session) HTTPRequest(ctx context.Context, method, requestURL, cookies s
 
 	for key, value := range headers {
 		req.Header.Set(key, value)
-	}
-
-	sourceName := ctx.Value(CtxSourceArg).(string)
-	mrlErr := s.MultiRateLimiter.Take(sourceName)
-	if mrlErr != nil {
-		return nil, mrlErr
 	}
 
 	return httpRequestWrapper(s.Client, req)
@@ -127,7 +147,6 @@ func (s *Session) DiscardHTTPResponse(response *http.Response) {
 
 // Close the session
 func (s *Session) Close() {
-	s.MultiRateLimiter.Stop()
 	s.Client.CloseIdleConnections()
 }
 

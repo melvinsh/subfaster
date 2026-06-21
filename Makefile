@@ -12,7 +12,7 @@ endif
     
 all: build
 build:
-	$(GOBUILD) $(GOFLAGS) -ldflags '$(LDFLAGS)' -o "subfinder" cmd/subfinder/main.go
+	$(GOBUILD) $(GOFLAGS) -ldflags '$(LDFLAGS)' -o "subfaster" cmd/subfaster/main.go
 test: 
 	$(GOTEST) $(GOFLAGS) ./...
 tidy:

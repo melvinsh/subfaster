@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 const (
@@ -107,7 +107,7 @@ func enumerate(ctx context.Context, session *subscraping.Session, targetURL stri
 			continue
 		}
 		var response result
-		err = jsoniter.NewDecoder(bytes.NewBufferString(line)).Decode(&response)
+		err = json.NewDecoder(bytes.NewBufferString(line)).Decode(&response)
 		if err != nil {
 			return results, err
 		}
@@ -133,10 +133,6 @@ func (s *Source) HasRecursiveSupport() bool {
 
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.RequiredKey
-}
-
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 func (s *Source) AddApiKeys(keys []string) {

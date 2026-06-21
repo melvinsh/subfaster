@@ -4,13 +4,15 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
+	"github.com/melvinsh/subfaster/v2/pkg/resolve"
 )
 
 // OutputWriter outputs content to writers.
@@ -90,7 +92,8 @@ func writePlainHostIP(_ string, results map[string]resolve.Result, writer io.Wri
 	bufwriter := bufio.NewWriter(writer)
 	sb := &strings.Builder{}
 
-	for _, result := range results {
+	for _, host := range slices.Sorted(maps.Keys(results)) {
+		result := results[host]
 		sb.WriteString(result.Host)
 		sb.WriteString(",")
 		sb.WriteString(result.IP)
@@ -111,11 +114,12 @@ func writePlainHostIP(_ string, results map[string]resolve.Result, writer io.Wri
 }
 
 func writeJSONHostIP(input string, results map[string]resolve.Result, writer io.Writer) error {
-	encoder := jsoniter.NewEncoder(writer)
+	encoder := json.NewEncoder(writer)
 
 	var data jsonSourceIPResult
 
-	for _, result := range results {
+	for _, host := range slices.Sorted(maps.Keys(results)) {
+		result := results[host]
 		data.Host = result.Host
 		data.IP = result.IP
 		data.Input = input
@@ -154,7 +158,8 @@ func writePlainHost(_ string, results map[string]resolve.HostEntry, writer io.Wr
 	bufwriter := bufio.NewWriter(writer)
 	sb := &strings.Builder{}
 
-	for _, result := range results {
+	for _, host := range slices.Sorted(maps.Keys(results)) {
+		result := results[host]
 		sb.WriteString(result.Host)
 		sb.WriteString("\n")
 
@@ -171,10 +176,11 @@ func writePlainHost(_ string, results map[string]resolve.HostEntry, writer io.Wr
 }
 
 func writeJSONHost(input string, results map[string]resolve.HostEntry, writer io.Writer) error {
-	encoder := jsoniter.NewEncoder(writer)
+	encoder := json.NewEncoder(writer)
 
 	var data jsonSourceResult
-	for _, result := range results {
+	for _, host := range slices.Sorted(maps.Keys(results)) {
+		result := results[host]
 		data.Host = result.Host
 		data.Input = input
 		data.Source = result.Source
@@ -199,18 +205,15 @@ func (o *OutputWriter) WriteSourceHost(input string, sourceMap map[string]map[st
 }
 
 func writeSourceJSONHost(input string, sourceMap map[string]map[string]struct{}, writer io.Writer) error {
-	encoder := jsoniter.NewEncoder(writer)
+	encoder := json.NewEncoder(writer)
 
 	var data jsonSourcesResult
 
-	for host, sources := range sourceMap {
+	for _, host := range slices.Sorted(maps.Keys(sourceMap)) {
+		sources := sourceMap[host]
 		data.Host = host
 		data.Input = input
-		keys := make([]string, 0, len(sources))
-		for source := range sources {
-			keys = append(keys, source)
-		}
-		data.Sources = keys
+		data.Sources = slices.Sorted(maps.Keys(sources))
 
 		err := encoder.Encode(&data)
 		if err != nil {
@@ -224,15 +227,11 @@ func writeSourcePlainHost(_ string, sourceMap map[string]map[string]struct{}, wr
 	bufwriter := bufio.NewWriter(writer)
 	sb := &strings.Builder{}
 
-	for host, sources := range sourceMap {
+	for _, host := range slices.Sorted(maps.Keys(sourceMap)) {
+		sources := sourceMap[host]
 		sb.WriteString(host)
 		sb.WriteString(",[")
-		var sourcesString strings.Builder
-		for source := range sources {
-			sourcesString.WriteString(source)
-			sourcesString.WriteRune(',')
-		}
-		sb.WriteString(strings.TrimSuffix(sourcesString.String(), ","))
+		sb.WriteString(strings.Join(slices.Sorted(maps.Keys(sources)), ","))
 		sb.WriteString("]\n")
 
 		_, err := bufwriter.WriteString(sb.String())

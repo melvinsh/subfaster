@@ -17,7 +17,7 @@ jobs:
       - name: Get Github tag
         id: meta
         run: |
-          curl --silent "https://api.github.com/repos/projectdiscovery/subfinder/releases/latest" | jq -r .tag_name | xargs -I {} echo TAG={} >> $GITHUB_OUTPUT
+          curl --silent "https://api.github.com/repos/melvinsh/subfaster/releases/latest" | jq -r .tag_name | xargs -I {} echo TAG={} >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -37,4 +37,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64,linux/arm
           push: true
-          tags: projectdiscovery/subfinder:latest,projectdiscovery/subfinder:${{ steps.meta.outputs.TAG }}
+          tags: melvinsh/subfaster:latest,melvinsh/subfaster:${{ steps.meta.outputs.TAG }}

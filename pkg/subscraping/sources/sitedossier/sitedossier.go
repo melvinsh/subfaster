@@ -7,9 +7,10 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 // SleepRandIntn is the integer value to get the pseudo-random number
@@ -38,6 +39,15 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			s.timeTaken = time.Since(startTime)
 			close(results)
 		}(time.Now())
+
+		// Cheap homepage probe first: if the IP is blocked, sitedossier drops
+		// our SYNs and a real request would hang for the full timeout. Bail fast.
+		if err := session.Preflight(ctx, "http://www.sitedossier.com/"); err != nil {
+			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error,
+				Error: fmt.Errorf("sitedossier preflight failed (blocked/unreachable): %w", err)}
+			s.errors++
+			return
+		}
 
 		s.enumerate(ctx, session, fmt.Sprintf("http://www.sitedossier.com/parentdomain/%s", domain), results)
 	}()
@@ -72,6 +82,20 @@ func (s *Source) enumerate(ctx context.Context, session *subscraping.Session, ba
 	session.DiscardHTTPResponse(resp)
 
 	src := string(body)
+
+	// When the IP is flagged, sitedossier 302-redirects to a captcha page
+	// (followed automatically, landing on /audit) instead of returning data.
+	// Detect it so it reports an error rather than a silent zero.
+	finalPath := ""
+	if resp.Request != nil {
+		finalPath = resp.Request.URL.Path
+	}
+	if isBlockedResponse(finalPath, src) {
+		results <- subscraping.Result{Source: "sitedossier", Type: subscraping.Error,
+			Error: fmt.Errorf("sitedossier blocked: captcha challenge (rate-limited)")}
+		s.errors++
+		return
+	}
 	for _, subdomain := range session.Extractor.Extract(src) {
 		select {
 		case <-ctx.Done():
@@ -85,6 +109,13 @@ func (s *Source) enumerate(ctx context.Context, session *subscraping.Session, ba
 	if len(match) > 0 {
 		s.enumerate(ctx, session, fmt.Sprintf("http://www.sitedossier.com%s", match[1]), results)
 	}
+}
+
+// isBlockedResponse reports whether a sitedossier response is the captcha
+// challenge served when the client IP is rate-limited. The 302 to /audit is
+// followed automatically, so we match the final path or the page text.
+func isBlockedResponse(finalPath, body string) bool {
+	return strings.Contains(finalPath, "/audit") || strings.Contains(body, "unusual or excessive requests")
 }
 
 // Name returns the name of the source
@@ -102,10 +133,6 @@ func (s *Source) HasRecursiveSupport() bool {
 
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.NoKey
-}
-
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 func (s *Source) AddApiKeys(_ []string) {

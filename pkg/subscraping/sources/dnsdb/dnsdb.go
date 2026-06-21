@@ -12,9 +12,7 @@ import (
 	"strings"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
-
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 const urlBase string = "https://api.dnsdb.info/dnsdb/v2"
@@ -124,7 +122,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 				}
 
 				var response safResponse
-				err = jsoniter.Unmarshal(n, &response)
+				err = json.Unmarshal(n, &response)
 				if err != nil {
 					results <- subscraping.Result{Source: sourceName, Type: subscraping.Error, Error: err}
 					s.errors++
@@ -191,10 +189,6 @@ func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.RequiredKey
 }
 
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
-}
-
 func (s *Source) AddApiKeys(keys []string) {
 	s.apiKeys = keys
 }
@@ -222,7 +216,7 @@ func getMaxOffset(ctx context.Context, session *subscraping.Session, headers map
 		return offsetMax, err
 	}
 	var rateResp rateResponse
-	err = jsoniter.Unmarshal(data, &rateResp)
+	err = json.Unmarshal(data, &rateResp)
 	if err != nil {
 		return offsetMax, err
 	}

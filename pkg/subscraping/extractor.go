@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// RegexSubdomainExtractor is a concrete implementation of the SubdomainExtractor interface, using regex for extraction.
+// RegexSubdomainExtractor extracts subdomains from text using a regex.
 type RegexSubdomainExtractor struct {
 	extractor *regexp.Regexp
 }
@@ -20,7 +20,7 @@ func NewSubdomainExtractor(domain string) (*RegexSubdomainExtractor, error) {
 	return &RegexSubdomainExtractor{extractor: extractor}, nil
 }
 
-// Extract implements the SubdomainExtractor interface, using the regex to find subdomains in the given text.
+// Extract uses the regex to find subdomains in the given text.
 func (re *RegexSubdomainExtractor) Extract(text string) []string {
 	matches := re.extractor.FindAllString(text, -1)
 	for i, match := range matches {

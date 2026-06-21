@@ -4,14 +4,24 @@ import (
 	"net"
 	"strings"
 
+	"github.com/melvinsh/subfaster/v2/pkg/passive"
+	"github.com/melvinsh/subfaster/v2/pkg/resolve"
 	"github.com/projectdiscovery/dnsx/libs/dnsx"
-	"github.com/projectdiscovery/subfinder/v2/pkg/passive"
-	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
 )
+
+// FastSources is the curated set of fast, productive keyless sources used by -fast.
+var FastSources = []string{"thc", "submd", "shodanct", "rapiddns", "hackertarget", "sitedossier"}
 
 // initializePassiveEngine creates the passive engine and loads sources etc
 func (r *Runner) initializePassiveEngine() {
-	r.passiveAgent = passive.New(r.options.Sources, r.options.ExcludeSources, r.options.All, r.options.OnlyRecursive)
+	sources, useAll := r.options.Sources, r.options.All
+	// -fast (default on) restricts to the curated fast keyless sources, unless
+	// the user explicitly widened the set with -all or -sources. -exclude-sources
+	// is always honored.
+	if r.options.Fast && len(sources) == 0 && !useAll {
+		sources = FastSources
+	}
+	r.passiveAgent = passive.New(sources, r.options.ExcludeSources, useAll, r.options.OnlyRecursive)
 }
 
 // initializeResolver creates the resolver used to resolve the found subdomains

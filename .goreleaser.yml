@@ -24,7 +24,7 @@ builds:
         goarch: 'arm'
 
     binary: '{{ .ProjectName }}'
-    main: cmd/subfinder/main.go
+    main: cmd/subfaster/main.go
 
 archives:
   - formats:

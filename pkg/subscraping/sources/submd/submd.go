@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 type Source struct {
@@ -99,7 +99,6 @@ func (s *Source) IsDefault() bool           { return true }
 func (s *Source) HasRecursiveSupport() bool { return false }
 
 func (s *Source) KeyRequirement() subscraping.KeyRequirement { return subscraping.OptionalKey }
-func (s *Source) NeedsKey() bool                             { return s.KeyRequirement() == subscraping.RequiredKey }
 func (s *Source) AddApiKeys(keys []string)                   { s.apiKeys = keys }
 
 func (s *Source) Statistics() subscraping.Statistics {

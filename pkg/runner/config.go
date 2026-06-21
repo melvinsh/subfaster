@@ -6,9 +6,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/melvinsh/subfaster/v2/pkg/passive"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/subfinder/v2/pkg/passive"
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
 	fileutil "github.com/projectdiscovery/utils/file"
 )
 

@@ -1,12 +1,12 @@
 .DS_Store
-cmd/subfinder/subfinder
-# subfinder binary when built with `go build`
-v2/cmd/subfinder/subfinder
-# subfinder binary when built with `make`
-v2/subfinder
+cmd/subfaster/subfaster
+# subfaster binary when built with `go build`
+v2/cmd/subfaster/subfaster
+# subfaster binary when built with `make`
+v2/subfaster
 vendor/
 .idea
 .devcontainer
 .vscode
 dist
-/subfinder
+/subfaster

@@ -15,12 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
 )
 
 type textMatch struct {
@@ -112,7 +112,7 @@ func (s *Source) enumerate(ctx context.Context, searchURL string, domainRegexp *
 	var data response
 
 	// Marshall json response
-	err = jsoniter.NewDecoder(resp.Body).Decode(&data)
+	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
 		results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 		s.errors.Add(1)
@@ -272,10 +272,6 @@ func (s *Source) HasRecursiveSupport() bool {
 
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.RequiredKey
-}
-
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 func (s *Source) AddApiKeys(keys []string) {

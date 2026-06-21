@@ -4,22 +4,16 @@ import (
 	"bufio"
 	"context"
 	"io"
-	"math"
 	"os"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/projectdiscovery/gologger"
-	contextutil "github.com/projectdiscovery/utils/context"
 	fileutil "github.com/projectdiscovery/utils/file"
-	mapsutil "github.com/projectdiscovery/utils/maps"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/passive"
-	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/passive"
+	"github.com/melvinsh/subfaster/v2/pkg/resolve"
 )
 
 // Runner is an instance of the subdomain enumeration
@@ -28,7 +22,6 @@ type Runner struct {
 	options        *Options
 	passiveAgent   *passive.Agent
 	resolverClient *resolve.Resolver
-	rateLimit      *subscraping.CustomRateLimit
 }
 
 // NewRunner creates a new runner struct instance by parsing
@@ -57,32 +50,12 @@ func NewRunner(options *Options) (*Runner, error) {
 		return nil, err
 	}
 
-	// Initialize the custom rate limit
-	runner.rateLimit = &subscraping.CustomRateLimit{
-		Custom: mapsutil.SyncLockMap[string, uint]{
-			Map: make(map[string]uint),
-		},
-		CustomDuration: mapsutil.SyncLockMap[string, time.Duration]{
-			Map: make(map[string]time.Duration),
-		},
-	}
-
-	for source, sourceRateLimit := range options.RateLimits.AsMap() {
-		if sourceRateLimit.MaxCount > 0 && sourceRateLimit.MaxCount <= math.MaxUint {
-			_ = runner.rateLimit.Custom.Set(source, sourceRateLimit.MaxCount)
-			if sourceRateLimit.Duration > 0 {
-				_ = runner.rateLimit.CustomDuration.Set(source, sourceRateLimit.Duration)
-			}
-		}
-	}
-
 	return runner, nil
 }
 
 // RunEnumeration wraps RunEnumerationWithCtx with an empty context
 func (r *Runner) RunEnumeration() error {
-	ctx, _ := contextutil.WithValues(context.Background(), contextutil.ContextArg("All"), contextutil.ContextArg(strconv.FormatBool(r.options.All)))
-	return r.RunEnumerationWithCtx(ctx)
+	return r.RunEnumerationWithCtx(context.Background())
 }
 
 // RunEnumerationWithCtx runs the subdomain enumeration flow on the targets specified
@@ -112,12 +85,6 @@ func (r *Runner) RunEnumerationWithCtx(ctx context.Context) error {
 		return r.EnumerateMultipleDomainsWithCtx(ctx, os.Stdin, outputs)
 	}
 	return nil
-}
-
-// EnumerateMultipleDomains wraps EnumerateMultipleDomainsWithCtx with an empty context
-func (r *Runner) EnumerateMultipleDomains(reader io.Reader, writers []io.Writer) error {
-	ctx, _ := contextutil.WithValues(context.Background(), contextutil.ContextArg("All"), contextutil.ContextArg(strconv.FormatBool(r.options.All)))
-	return r.EnumerateMultipleDomainsWithCtx(ctx, reader, writers)
 }
 
 // EnumerateMultipleDomainsWithCtx enumerates subdomains for multiple domains

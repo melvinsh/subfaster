@@ -4,21 +4,7 @@ import (
 	"context"
 	"net/http"
 	"time"
-
-	"github.com/projectdiscovery/ratelimit"
-	mapsutil "github.com/projectdiscovery/utils/maps"
 )
-
-type CtxArg string
-
-const (
-	CtxSourceArg CtxArg = "source"
-)
-
-type CustomRateLimit struct {
-	Custom         mapsutil.SyncLockMap[string, uint]
-	CustomDuration mapsutil.SyncLockMap[string, time.Duration]
-}
 
 // BasicAuth request's Authorization header
 type BasicAuth struct {
@@ -66,30 +52,19 @@ type Source interface {
 	// KeyRequirement returns the API key requirement level for this source
 	KeyRequirement() KeyRequirement
 
-	// NeedsKey returns true if the source requires an API key.
-	// Deprecated: Use KeyRequirement() instead for more granular control.
-	NeedsKey() bool
-
 	AddApiKeys([]string)
 
 	// Statistics returns the scrapping statistics for the source
 	Statistics() Statistics
 }
 
-// SubdomainExtractor is an interface that defines the contract for subdomain extraction.
-type SubdomainExtractor interface {
-	Extract(text string) []string
-}
-
 // Session is the option passed to the source, an option is created
 // uniquely for each source.
 type Session struct {
-	//SubdomainExtractor
-	Extractor SubdomainExtractor
+	// Extractor pulls subdomains out of source responses for the target domain
+	Extractor *RegexSubdomainExtractor
 	// Client is the current http client
 	Client *http.Client
-	// Rate limit instance
-	MultiRateLimiter *ratelimit.MultiLimiter
 	// Timeout is the timeout in seconds for requests
 	Timeout int
 }

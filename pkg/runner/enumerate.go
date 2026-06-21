@@ -7,16 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hako/durafmt"
-
 	"github.com/projectdiscovery/gologger"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/passive"
-	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/resolve"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
-
-const maxNumCount = 2
 
 var replacer = strings.NewReplacer(
 	"/", "",
@@ -26,11 +21,6 @@ var replacer = strings.NewReplacer(
 	"http://", "",
 	"https://", "",
 )
-
-// EnumerateSingleDomain wraps EnumerateSingleDomainWithCtx with an empty context
-func (r *Runner) EnumerateSingleDomain(domain string, writers []io.Writer) (map[string]map[string]struct{}, error) {
-	return r.EnumerateSingleDomainWithCtx(context.Background(), domain, writers)
-}
 
 // EnumerateSingleDomainWithCtx performs subdomain enumeration against a single domain
 func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string, writers []io.Writer) (map[string]map[string]struct{}, error) {
@@ -50,7 +40,7 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 
 	// Run the passive subdomain enumeration
 	now := time.Now()
-	passiveResults := r.passiveAgent.EnumerateSubdomainsWithCtx(ctx, domain, r.options.Proxy, r.options.RateLimit, r.options.Timeout, time.Duration(r.options.MaxEnumerationTime)*time.Minute, passive.WithCustomRateLimit(r.rateLimit))
+	passiveResults := r.passiveAgent.EnumerateSubdomainsWithCtx(ctx, domain, r.options.Proxy, r.options.Timeout, time.Duration(r.options.MaxEnumerationTime)*time.Minute)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -181,7 +171,7 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 	}
 
 	// Show found subdomain count in any case.
-	duration := durafmt.Parse(time.Since(now)).LimitFirstN(maxNumCount).String()
+	duration := time.Since(now).Round(time.Millisecond).String()
 	var numberOfSubDomains int
 	if r.options.RemoveWildcard {
 		numberOfSubDomains = len(foundResults)

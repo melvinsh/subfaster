@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 const (
@@ -109,11 +109,6 @@ func (s *Source) HasRecursiveSupport() bool {
 // KeyRequirement indicates that we need an API key
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.RequiredKey
-}
-
-// NeedsKey indicates that we need an API key
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 // AddApiKeys provides us with the API key(s)

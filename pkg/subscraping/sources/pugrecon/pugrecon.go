@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 // pugreconResult stores a single result from the pugrecon API
@@ -139,11 +139,6 @@ func (s *Source) HasRecursiveSupport() bool {
 // KeyRequirement returns the API key requirement level for this source.
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.RequiredKey
-}
-
-// NeedsKey returns true as this source requires an API key.
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 // AddApiKeys adds the API keys for the source.

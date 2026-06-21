@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"encoding/json"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 	"github.com/projectdiscovery/utils/ptr"
 )
 
@@ -89,7 +89,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			}
 
 			var securityTrailsResponse response
-			err = jsoniter.NewDecoder(resp.Body).Decode(&securityTrailsResponse)
+			err = json.NewDecoder(resp.Body).Decode(&securityTrailsResponse)
 			if err != nil {
 				results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 				s.errors++
@@ -149,10 +149,6 @@ func (s *Source) HasRecursiveSupport() bool {
 
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.RequiredKey
-}
-
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 func (s *Source) AddApiKeys(keys []string) {

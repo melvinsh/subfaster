@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping"
 )
 
 // threatCrowdResponse represents the JSON response from the ThreatCrowd API.
@@ -114,11 +114,6 @@ func (s *Source) HasRecursiveSupport() bool {
 // KeyRequirement returns the API key requirement level for this source.
 func (s *Source) KeyRequirement() subscraping.KeyRequirement {
 	return subscraping.NoKey
-}
-
-// NeedsKey indicates if the source requires an API key.
-func (s *Source) NeedsKey() bool {
-	return s.KeyRequirement() == subscraping.RequiredKey
 }
 
 // AddApiKeys is a no-op since ThreatCrowd does not require an API key.

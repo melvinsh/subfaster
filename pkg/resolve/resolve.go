@@ -2,14 +2,24 @@ package resolve
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"sync"
-
-	"github.com/rs/xid"
 )
 
 const (
 	maxWildcardChecks = 3
 )
+
+// randomLabel returns a random DNS label used to probe for wildcard domains.
+// It only needs to be unlikely to exist, not globally unique.
+func randomLabel() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, 16)
+	for i := range b {
+		b[i] = charset[rand.IntN(len(charset))]
+	}
+	return string(b)
+}
 
 // ResolutionPool is a pool of resolvers created for resolving subdomains
 // for a given host.
@@ -76,7 +86,7 @@ func (r *Resolver) NewResolutionPool(workers int, removeWildcard bool) *Resoluti
 // InitWildcards inits the wildcard ips array
 func (r *ResolutionPool) InitWildcards(domain string) error {
 	for range maxWildcardChecks {
-		uid := xid.New().String()
+		uid := randomLabel()
 
 		hosts, _ := r.DNSClient.Lookup(uid + "." + domain)
 		if len(hosts) == 0 {
