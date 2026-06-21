@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/projectdiscovery/gologger"
@@ -36,6 +37,15 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 			// Log the error but don't quit.
 			gologger.Warning().Msgf("Could not get wildcards for domain %s: %s\n", domain, err)
 		}
+	}
+
+	// Live "FAST" animation on stderr (no-op when not a TTY). Skipped in verbose
+	// mode, where per-subdomain logs would fight the single redrawn line.
+	var found atomic.Int64
+	var meter *speedometer
+	if !r.options.Verbose {
+		meter = newSpeedometer(domain, &found)
+		meter.start()
 	}
 
 	// Run the passive subdomain enumeration
@@ -99,6 +109,7 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 					}
 
 					uniqueMap[subdomain] = hostEntry
+				found.Add(1)
 					// If the user asked to remove wildcard then send on the resolve
 					// queue. Otherwise, if mode is not verbose print the results on
 					// the screen as they are discovered.
@@ -147,6 +158,9 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 		}
 	}
 	wg.Wait()
+	if meter != nil {
+		meter.Stop()
+	}
 	outputWriter := NewOutputWriter(r.options.JSON)
 	// Now output all results in output writers
 	var err error
