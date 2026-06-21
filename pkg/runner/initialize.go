@@ -10,7 +10,7 @@ import (
 )
 
 // FastSources is the curated set of fast, productive keyless sources used by -fast.
-var FastSources = []string{"thc", "submd", "shodanct", "rapiddns", "hackertarget", "sitedossier"}
+var FastSources = []string{"thc", "submd", "dnsmelvin", "shodanct", "rapiddns", "hackertarget", "sitedossier"}
 
 // initializePassiveEngine creates the passive engine and loads sources etc
 func (r *Runner) initializePassiveEngine() {
