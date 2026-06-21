@@ -5,7 +5,7 @@ import (
 )
 
 // Version is the current version of subfaster
-const version = `v2.16.1`
+const version = `v2.16.2`
 
 // GetUpdateCallback returns a callback function that updates subfaster
 func GetUpdateCallback() func() {

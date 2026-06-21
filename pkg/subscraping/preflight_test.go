@@ -34,4 +34,20 @@ func TestPreflight(t *testing.T) {
 	if err := s.Preflight(context.Background(), srv.URL); err != nil {
 		t.Fatalf("Preflight(cached reachable) = %v, want nil", err)
 	}
+
+	// a verdict produced by a cancelled caller context must NOT be cached —
+	// otherwise one cancelled domain would skip a healthy source for the rest
+	// of a -dL run.
+	live := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer live.Close()
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := s.Preflight(cancelled, live.URL); err == nil {
+		t.Fatal("Preflight(cancelled) = nil, want error")
+	}
+	// re-probe with a good context: must succeed, proving the cancelled verdict
+	// was not cached.
+	if err := s.Preflight(context.Background(), live.URL); err != nil {
+		t.Fatalf("Preflight(after cancelled) = %v, want nil — cancelled verdict was wrongly cached", err)
+	}
 }

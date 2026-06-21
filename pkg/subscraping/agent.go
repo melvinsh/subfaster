@@ -89,7 +89,12 @@ func (s *Session) Preflight(ctx context.Context, probeURL string) error {
 		return v.(error)
 	}
 	err := s.probe(ctx, probeURL)
-	preflightCache.Store(probeURL, err)
+	// Don't cache a verdict produced by the caller's context being cancelled
+	// (per-domain timeout, Ctrl-C): it reflects the caller, not the host, and
+	// would wrongly skip a healthy source for every later domain in a -dL run.
+	if ctx.Err() == nil {
+		preflightCache.Store(probeURL, err)
+	}
 	return err
 }
 
