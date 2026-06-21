@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/projectdiscovery/gologger"
@@ -69,11 +70,30 @@ func (s *Session) SimpleGet(ctx context.Context, getURL string) (*http.Response,
 // blocks before spending a full request (or API quota) on the real endpoint.
 const preflightTimeout = 3 * time.Second
 
+// preflightCache memoizes probe verdicts by URL for the process lifetime so a
+// host that fails once (a blocked/unreachable source) isn't re-probed — and
+// re-timed-out — for every domain in a large -dL list.
+// ponytail: process-wide cache, never expires; restart to re-probe.
+var preflightCache sync.Map // probeURL -> error (nil means reachable)
+
 // Preflight probes probeURL (a source's homepage, so it costs no API quota)
 // with a short timeout. It returns an error if the host is unreachable within
 // the probe window, letting a source bail out fast instead of hanging on a
 // blocked endpoint for the full request timeout. It is not rate-limited.
+// The verdict is cached per probeURL across domains.
 func (s *Session) Preflight(ctx context.Context, probeURL string) error {
+	if v, ok := preflightCache.Load(probeURL); ok {
+		if v == nil {
+			return nil
+		}
+		return v.(error)
+	}
+	err := s.probe(ctx, probeURL)
+	preflightCache.Store(probeURL, err)
+	return err
+}
+
+func (s *Session) probe(ctx context.Context, probeURL string) error {
 	ctx, cancel := context.WithTimeout(ctx, preflightTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
