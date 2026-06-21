@@ -11,7 +11,6 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/alienvault"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/anubis"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/bevigil"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/bufferover"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/builtwith"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/c99"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/censys"
@@ -25,7 +24,6 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsdb"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsdumpster"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsrepo"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/domainsproject"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/driftnet"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/fofa"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/fullhunt"
@@ -42,8 +40,6 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/quake"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/rapiddns"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/reconeer"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/redhuntlabs"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/robtex"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/rsecloud"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/securitytrails"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/shodan"
@@ -52,7 +48,6 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/submd"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/thc"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/threatbook"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/threatcrowd"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/urlscan"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/virustotal"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/waybackarchive"
@@ -67,7 +62,6 @@ var AllSources = [...]subscraping.Source{
 	&alienvault.Source{},
 	&anubis.Source{},
 	&bevigil.Source{},
-	&bufferover.Source{},
 	&builtwith.Source{},
 	&c99.Source{},
 	&censys.Source{},
@@ -81,7 +75,6 @@ var AllSources = [...]subscraping.Source{
 	&dnsdb.Source{},
 	&dnsdumpster.Source{},
 	&dnsrepo.Source{},
-	&domainsproject.Source{},
 	&driftnet.Source{},
 	&fofa.Source{},
 	&fullhunt.Source{},
@@ -97,11 +90,7 @@ var AllSources = [...]subscraping.Source{
 	&pugrecon.Source{},
 	&quake.Source{},
 	&rapiddns.Source{},
-	// &reconcloud.Source{}, // failing due to cloudflare bot protection
 	&reconeer.Source{},
-	&redhuntlabs.Source{},
-	// &riddler.Source{}, // failing due to cloudfront protection
-	&robtex.Source{},
 	&rsecloud.Source{},
 	&securitytrails.Source{},
 	&shodan.Source{},
@@ -109,8 +98,6 @@ var AllSources = [...]subscraping.Source{
 	&sitedossier.Source{},
 	&thc.Source{},
 	&threatbook.Source{},
-	&threatcrowd.Source{},
-	// &threatminer.Source{}, // failing  api
 	&urlscan.Source{},
 	&virustotal.Source{},
 	&waybackarchive.Source{},
