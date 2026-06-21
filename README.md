@@ -1,6 +1,9 @@
 <h1 align="center">subfaster</h1>
 
 <h4 align="center">Fast passive subdomain enumeration — a speed-focused fork of <a href="https://github.com/projectdiscovery/subfinder">subfinder</a>.</h4>
+<div align="center">
+<img align="center" width="610" height="257" alt="subfaster" src="https://github.com/user-attachments/assets/869adbdd-3376-49f6-9726-ea339edbac88" />
+</div>
 
 ---
 
