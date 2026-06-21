@@ -74,7 +74,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 
 		apiURL := "https://pugrecon.com/api/v1/domains"
 		s.requests++
-		resp, err := session.HTTPRequest(ctx, http.MethodPost, apiURL, "", headers, bodyReader, subscraping.BasicAuth{}) // Use HTTPRequest for full header control
+		resp, err := session.HTTPRequest(ctx, http.MethodPost, apiURL, "", headers, bodyReader) // Use HTTPRequest for full header control
 		if err != nil {
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 			s.errors++

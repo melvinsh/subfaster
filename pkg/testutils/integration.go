@@ -35,8 +35,3 @@ func RunSubfinderAndGetResults(debug bool, domain string, extra ...string) ([]st
 	}
 	return parts, nil
 }
-
-// TestCase is a single integration test case
-type TestCase interface {
-	Execute() error
-}

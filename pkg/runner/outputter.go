@@ -2,15 +2,15 @@ package runner
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"encoding/json"
 
 	"github.com/melvinsh/subfaster/v2/pkg/resolve"
 )
@@ -90,25 +90,11 @@ func (o *OutputWriter) WriteHostIP(input string, results map[string]resolve.Resu
 
 func writePlainHostIP(_ string, results map[string]resolve.Result, writer io.Writer) error {
 	bufwriter := bufio.NewWriter(writer)
-	sb := &strings.Builder{}
-
 	for _, host := range slices.Sorted(maps.Keys(results)) {
 		result := results[host]
-		sb.WriteString(result.Host)
-		sb.WriteString(",")
-		sb.WriteString(result.IP)
-		sb.WriteString(",")
-		sb.WriteString(result.Source)
-		sb.WriteString("\n")
-
-		_, err := bufwriter.WriteString(sb.String())
-		if err != nil {
-			if flushErr := bufwriter.Flush(); flushErr != nil {
-				return errors.Join(err, flushErr)
-			}
-			return err
+		if _, err := fmt.Fprintf(bufwriter, "%s,%s,%s\n", result.Host, result.IP, result.Source); err != nil {
+			return errors.Join(err, bufwriter.Flush())
 		}
-		sb.Reset()
 	}
 	return bufwriter.Flush()
 }
@@ -156,21 +142,10 @@ func (o *OutputWriter) WriteHost(input string, results map[string]resolve.HostEn
 
 func writePlainHost(_ string, results map[string]resolve.HostEntry, writer io.Writer) error {
 	bufwriter := bufio.NewWriter(writer)
-	sb := &strings.Builder{}
-
 	for _, host := range slices.Sorted(maps.Keys(results)) {
-		result := results[host]
-		sb.WriteString(result.Host)
-		sb.WriteString("\n")
-
-		_, err := bufwriter.WriteString(sb.String())
-		if err != nil {
-			if flushErr := bufwriter.Flush(); flushErr != nil {
-				return errors.Join(err, flushErr)
-			}
-			return err
+		if _, err := fmt.Fprintln(bufwriter, results[host].Host); err != nil {
+			return errors.Join(err, bufwriter.Flush())
 		}
-		sb.Reset()
 	}
 	return bufwriter.Flush()
 }
@@ -225,23 +200,11 @@ func writeSourceJSONHost(input string, sourceMap map[string]map[string]struct{},
 
 func writeSourcePlainHost(_ string, sourceMap map[string]map[string]struct{}, writer io.Writer) error {
 	bufwriter := bufio.NewWriter(writer)
-	sb := &strings.Builder{}
-
 	for _, host := range slices.Sorted(maps.Keys(sourceMap)) {
-		sources := sourceMap[host]
-		sb.WriteString(host)
-		sb.WriteString(",[")
-		sb.WriteString(strings.Join(slices.Sorted(maps.Keys(sources)), ","))
-		sb.WriteString("]\n")
-
-		_, err := bufwriter.WriteString(sb.String())
-		if err != nil {
-			if flushErr := bufwriter.Flush(); flushErr != nil {
-				return errors.Join(err, flushErr)
-			}
-			return err
+		sources := strings.Join(slices.Sorted(maps.Keys(sourceMap[host])), ",")
+		if _, err := fmt.Fprintf(bufwriter, "%s,[%s]\n", host, sources); err != nil {
+			return errors.Join(err, bufwriter.Flush())
 		}
-		sb.Reset()
 	}
 	return bufwriter.Flush()
 }

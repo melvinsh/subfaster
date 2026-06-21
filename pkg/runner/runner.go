@@ -53,11 +53,6 @@ func NewRunner(options *Options) (*Runner, error) {
 	return runner, nil
 }
 
-// RunEnumeration wraps RunEnumerationWithCtx with an empty context
-func (r *Runner) RunEnumeration() error {
-	return r.RunEnumerationWithCtx(context.Background())
-}
-
 // RunEnumerationWithCtx runs the subdomain enumeration flow on the targets specified
 func (r *Runner) RunEnumerationWithCtx(ctx context.Context) error {
 	outputs := []io.Writer{r.options.Output}

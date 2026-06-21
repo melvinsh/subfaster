@@ -55,7 +55,6 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/windvane"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/zoomeyeapi"
 	"github.com/projectdiscovery/gologger"
-	mapsutil "github.com/projectdiscovery/utils/maps"
 )
 
 var AllSources = [...]subscraping.Source{
@@ -106,9 +105,6 @@ var AllSources = [...]subscraping.Source{
 	&zoomeyeapi.Source{},
 	&submd.Source{},
 }
-
-var sourceWarnings = mapsutil.NewSyncLockMap[string, string](
-	mapsutil.WithMap(mapsutil.Map[string, string]{}))
 
 var NameSourceMap = make(map[string]subscraping.Source, len(AllSources))
 
@@ -168,12 +164,6 @@ func New(sourceNames, excludedSourceNames []string, useAllSources, useSourcesSup
 	}
 
 	gologger.Debug().Msgf("Selected source(s) for this search: %s", strings.Join(slices.Collect(maps.Keys(sources)), ", "))
-
-	for _, currentSource := range sources {
-		if warning, ok := sourceWarnings.Get(strings.ToLower(currentSource.Name())); ok {
-			gologger.Warning().Msg(warning)
-		}
-	}
 
 	for _, source := range sources {
 		keyReq := source.KeyRequirement()

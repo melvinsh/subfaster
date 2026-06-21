@@ -72,7 +72,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		resp1, err := session.HTTPRequest(ctx, http.MethodGet, countUrl, "", map[string]string{
 			"accept":    "application/json",
 			"X-API-Key": randomApiKey,
-		}, nil, subscraping.BasicAuth{})
+		}, nil)
 
 		if err != nil {
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
@@ -127,7 +127,7 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		resp2, err := session.HTTPRequest(ctx, http.MethodPost, apiUrl, "", map[string]string{
 			"accept":       "application/json",
 			"X-API-Key":    randomApiKey,
-			"Content-Type": "application/json"}, strings.NewReader(string(jsonRequestBody)), subscraping.BasicAuth{})
+			"Content-Type": "application/json"}, strings.NewReader(string(jsonRequestBody)))
 		if err != nil {
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 			s.errors++
