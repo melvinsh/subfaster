@@ -1,7 +1,7 @@
-// Package dnsmelvin is a source for dns.melv.in, a passive subdomain index
+// Package crt is a source for crt.name, a passive subdomain index
 // fed by the public Certificate Transparency firehose. Its /v1/search endpoint
 // has a keyless free tier (1000 req/IP/day); a Bearer token lifts the limit.
-package dnsmelvin
+package crt
 
 import (
 	"bufio"
@@ -87,7 +87,7 @@ func (s *Source) trySendError(ctx context.Context, ch chan<- subscraping.Result,
 
 // fetch issues the API call, upgrading to Bearer auth when a key is available.
 func (s *Source) fetch(ctx context.Context, domain string, session *subscraping.Session) (*http.Response, error) {
-	endpoint := "https://dns.melv.in/v1/search?apex=" + url.QueryEscape(domain)
+	endpoint := "https://crt.name/v1/search?apex=" + url.QueryEscape(domain)
 
 	if len(s.apiKeys) > 0 {
 		return session.Get(ctx, endpoint, "", map[string]string{
@@ -97,7 +97,7 @@ func (s *Source) fetch(ctx context.Context, domain string, session *subscraping.
 	return session.SimpleGet(ctx, endpoint)
 }
 
-func (s *Source) Name() string              { return "dnsmelvin" }
+func (s *Source) Name() string              { return "crt" }
 func (s *Source) IsDefault() bool           { return true }
 func (s *Source) HasRecursiveSupport() bool { return false }
 

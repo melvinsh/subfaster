@@ -18,12 +18,12 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/chaos"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/chinaz"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/commoncrawl"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/crt"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/crtsh"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/digitalyama"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/digitorus"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsdb"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsdumpster"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsmelvin"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/dnsrepo"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/driftnet"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/fofa"
@@ -74,7 +74,7 @@ var AllSources = [...]subscraping.Source{
 	&digitorus.Source{},
 	&dnsdb.Source{},
 	&dnsdumpster.Source{},
-	&dnsmelvin.Source{},
+	&crt.Source{},
 	&dnsrepo.Source{},
 	&driftnet.Source{},
 	&fofa.Source{},
