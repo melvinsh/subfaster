@@ -15,6 +15,27 @@ import (
 	"github.com/projectdiscovery/gologger"
 )
 
+// maxResponseBodySize is the maximum number of bytes read from an untrusted
+// passive-source HTTP response body. Sources consume third-party (and in some
+// cases MITM-able, since TLS verification is skipped) responses; without a cap
+// a malicious/compromised upstream can stream an effectively unbounded body and
+// OOM the process, because the HTTP client Timeout bounds time, not size.
+//
+// 50MB is intentionally generous: legitimate subdomain lists — even large
+// certificate-transparency or bulk-API JSON responses — sit well under this,
+// so real sources are unaffected while pathological bodies are truncated.
+const maxResponseBodySize = 50 * 1024 * 1024 // 50MB
+
+// limitedResponseBody wraps a response body so that at most maxResponseBodySize
+// bytes can be read from it, while still closing the underlying body (so no
+// connection/body leak). It is applied centrally in httpRequestWrapper so every
+// source inherits the cap regardless of how it consumes the body (io.ReadAll,
+// json.Decoder, bufio.Scanner, etc.).
+type limitedResponseBody struct {
+	io.Reader // io.LimitReader over the original body
+	io.Closer // the original body's Close
+}
+
 // userAgent is the fixed User-Agent sent with every request.
 const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
 
@@ -175,6 +196,15 @@ func httpRequestWrapper(client *http.Client, request *http.Request) (*http.Respo
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
+	}
+
+	// Cap the untrusted response body centrally so every source (and the
+	// debug-logging path below) is bounded regardless of how it reads the body.
+	if response.Body != nil {
+		response.Body = &limitedResponseBody{
+			Reader: io.LimitReader(response.Body, maxResponseBodySize),
+			Closer: response.Body,
+		}
 	}
 
 	if response.StatusCode != http.StatusOK {
