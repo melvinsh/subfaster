@@ -109,7 +109,7 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 					}
 
 					uniqueMap[subdomain] = hostEntry
-				found.Add(1)
+					found.Add(1)
 					// If the user asked to remove wildcard then send on the resolve
 					// queue. Otherwise, if mode is not verbose print the results on
 					// the screen as they are discovered.
