@@ -47,9 +47,9 @@ func NewSession(domain string, proxy string, timeout int) (*Session, error) {
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
-		Dial: (&net.Dialer{
+		DialContext: (&net.Dialer{
 			Timeout: time.Duration(timeout) * time.Second,
-		}).Dial,
+		}).DialContext,
 	}
 
 	// Add proxy
