@@ -42,6 +42,7 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/rapiddns"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/reconeer"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/rsecloud"
+	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/scanmalware"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/securitytrails"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/shodan"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/shodanct"
@@ -97,6 +98,7 @@ var AllSources = [...]subscraping.Source{
 	&shodan.Source{},
 	&shodanct.Source{},
 	&sitedossier.Source{},
+	&scanmalware.Source{},
 	&thc.Source{},
 	&threatbook.Source{},
 	&urlscan.Source{},
