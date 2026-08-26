@@ -13,7 +13,9 @@ endif
 all: build
 build:
 	$(GOBUILD) $(GOFLAGS) -ldflags '$(LDFLAGS)' -o "subfaster" cmd/subfaster/main.go
-test: 
+test:
+	$(GOTEST) $(GOFLAGS) -short ./...
+test-live:
 	$(GOTEST) $(GOFLAGS) ./...
 tidy:
 	$(GOMOD) tidy

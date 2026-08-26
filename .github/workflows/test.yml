@@ -1,0 +1,24 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # -short skips the live source hits in pkg/passive, which need
+      # network + API keys and are already marked flaky.
+      - name: Test
+        run: go test -short -race ./...
+
+      - name: Build
+        run: go build -o /tmp/subfaster ./cmd/subfaster
