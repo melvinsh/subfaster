@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -38,15 +39,42 @@ func cometPos(frame, track int) int {
 // speedometer draws a live single-line animation on stderr while enumeration
 // runs, leading with throughput (subdomains/sec) to convey speed. It writes to
 // stderr so piped stdout stays clean, and is a no-op when stderr is not a TTY.
+// One meter covers a whole batch of domains; all methods are nil-safe.
 type speedometer struct {
-	domain string
-	count  *atomic.Int64
-	stop   chan struct{}
-	done   chan struct{}
+	label func() string
+	count atomic.Int64
+	stop  chan struct{}
+	done  chan struct{}
+
+	mu    sync.Mutex // serializes drawing with Print
+	drawn bool       // a frame is on screen and must be cleared before other output
 }
 
-func newSpeedometer(domain string, count *atomic.Int64) *speedometer {
-	return &speedometer{domain: domain, count: count, stop: make(chan struct{}), done: make(chan struct{})}
+func newSpeedometer(label func() string) *speedometer {
+	return &speedometer{label: label, stop: make(chan struct{}), done: make(chan struct{})}
+}
+
+// Add counts newly found subdomains.
+func (s *speedometer) Add(n int64) {
+	if s != nil {
+		s.count.Add(n)
+	}
+}
+
+// Print runs fn with the meter line cleared, so output written to the terminal
+// by fn doesn't land on top of the animation. The next tick redraws it.
+func (s *speedometer) Print(fn func()) {
+	if s == nil {
+		fn()
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.drawn {
+		fmt.Fprint(os.Stderr, "\r\033[K")
+		s.drawn = false
+	}
+	fn()
 }
 
 func (s *speedometer) start() {
@@ -68,7 +96,9 @@ func (s *speedometer) run() {
 	for frame := 0; ; frame++ {
 		select {
 		case <-s.stop:
+			s.mu.Lock()
 			fmt.Fprint(os.Stderr, "\r\033[K\033[?25h") // clear line, show cursor
+			s.mu.Unlock()
 			return
 		case <-ticker.C:
 			elapsed := time.Since(start).Seconds()
@@ -83,21 +113,27 @@ func (s *speedometer) run() {
 			}
 			track[cometPos(frame, cometTrack)] = '⚡'
 
+			s.mu.Lock()
 			fmt.Fprintf(os.Stderr,
 				"\r%s%c%s %s%s%s [%s%s%s] %s%d%s found  %s%.0f/s%s  %s%.1fs%s",
 				ansiYellow, spinFrames[frame%len(spinFrames)], ansiReset,
-				ansiBold, s.domain, ansiReset,
+				ansiBold, s.label(), ansiReset,
 				ansiCyan, string(track), ansiReset,
 				ansiBold+ansiGreen, n, ansiReset,
 				ansiBold+ansiYellow, rate, ansiReset,
 				ansiDim, elapsed, ansiReset,
 			)
+			s.drawn = true
+			s.mu.Unlock()
 		}
 	}
 }
 
 // stop ends the animation and clears the line. Safe even if start() was a no-op.
 func (s *speedometer) Stop() {
+	if s == nil {
+		return
+	}
 	select {
 	case <-s.done: // never started (not a TTY)
 	default:

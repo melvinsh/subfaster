@@ -45,7 +45,7 @@ type Options struct {
 	All                bool                // All specifies whether to use all (slow) sources.
 	Fast               bool                // Fast restricts enumeration to the curated fast keyless sources
 	Statistics         bool                // Statistics specifies whether to report source statistics
-	Threads            int                 // Threads controls the number of threads to use for active enumerations
+	Threads            int                 // Threads controls how many domains are enumerated at once, and the resolver threads per domain for active enumerations
 	Timeout            int                 // Timeout is the seconds to wait for sources to respond
 	MaxEnumerationTime int                 // MaxEnumerationTime is the maximum amount of time in minutes to wait for enumeration
 	Domain             goflags.StringSlice // Domain is the domain to find subdomains for
@@ -85,6 +85,7 @@ func ParseOptions() *Options {
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringSliceVarP(&options.Domain, "domain", "d", nil, "target domain(s) to enumerate (-d example.com,acme.com)", goflags.NormalizedStringSliceOptions),
 		flagSet.StringVarP(&options.DomainsFile, "list", "dL", "", "file with target domains, one per line"),
+		flagSet.IntVar(&options.Threads, "t", 10, "domains to enumerate in parallel; also resolver threads per domain (with -active)"),
 	)
 
 	flagSet.CreateGroup("source", "Sources",
@@ -108,7 +109,6 @@ func ParseOptions() *Options {
 		flagSet.BoolVarP(&options.HostIP, "ip", "oI", false, "include the resolved IP in output (with -active)"),
 		flagSet.StringSliceVar(&options.Resolvers, "r", nil, "resolvers to use (comma-separated)", goflags.NormalizedStringSliceOptions),
 		flagSet.StringVarP(&options.ResolverList, "rlist", "rL", "", "file with resolvers to use"),
-		flagSet.IntVar(&options.Threads, "t", 10, "concurrent resolver threads (with -active)"),
 	)
 
 	flagSet.CreateGroup("filter", "Filter",

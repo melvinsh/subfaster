@@ -5,7 +5,6 @@ import (
 	"io"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/projectdiscovery/gologger"
@@ -25,7 +24,15 @@ var replacer = strings.NewReplacer(
 
 // EnumerateSingleDomainWithCtx performs subdomain enumeration against a single domain
 func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string, writers []io.Writer) (map[string]map[string]struct{}, error) {
+	return r.enumerateDomain(ctx, domain, writers, nil)
+}
+
+// enumerateDomain enumerates one domain on its own copy of the sources, so
+// several can run at once. meter may be nil.
+func (r *Runner) enumerateDomain(ctx context.Context, domain string, writers []io.Writer, meter *speedometer) (map[string]map[string]struct{}, error) {
 	gologger.Info().Msgf("Enumerating subdomains for %s\n", domain)
+	agent := r.passiveAgent.Clone()
+	defer r.lastAgent.Store(agent)
 
 	// Check if the user has asked to remove wildcards explicitly.
 	// If yes, create the resolution pool and get the wildcards for the current domain
@@ -39,18 +46,9 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 		}
 	}
 
-	// Live "FAST" animation on stderr (no-op when not a TTY). Skipped in verbose
-	// mode, where per-subdomain logs would fight the single redrawn line.
-	var found atomic.Int64
-	var meter *speedometer
-	if !r.options.Verbose {
-		meter = newSpeedometer(domain, &found)
-		meter.start()
-	}
-
 	// Run the passive subdomain enumeration
 	now := time.Now()
-	passiveResults := r.passiveAgent.EnumerateSubdomainsWithCtx(ctx, domain, r.options.Proxy, r.options.Timeout, time.Duration(r.options.MaxEnumerationTime)*time.Minute)
+	passiveResults := agent.EnumerateSubdomainsWithCtx(ctx, domain, r.options.Proxy, r.options.Timeout, time.Duration(r.options.MaxEnumerationTime)*time.Minute)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -106,11 +104,11 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 
 					hostEntry := resolve.HostEntry{Domain: domain, Host: subdomain, Source: result.Source, WildcardCertificate: isWildcard}
 					if r.options.ResultCallback != nil && !r.options.RemoveWildcard {
-						r.options.ResultCallback(&hostEntry)
+						r.callback(&hostEntry)
 					}
 
 					uniqueMap[subdomain] = hostEntry
-					found.Add(1)
+					meter.Add(1)
 					// If the user asked to remove wildcard then send on the resolve
 					// queue. Otherwise, if mode is not verbose print the results on
 					// the screen as they are discovered.
@@ -142,7 +140,7 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 				if _, ok := foundResults[result.Host]; !ok {
 					foundResults[result.Host] = result
 					if r.options.ResultCallback != nil {
-						r.options.ResultCallback(&resolve.HostEntry{Domain: domain, Host: result.Host, Source: result.Source, WildcardCertificate: result.WildcardCertificate})
+						r.callback(&resolve.HostEntry{Domain: domain, Host: result.Host, Source: result.Source, WildcardCertificate: result.WildcardCertificate})
 					}
 				}
 			}
@@ -159,9 +157,6 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 		}
 	}
 	wg.Wait()
-	if meter != nil {
-		meter.Stop()
-	}
 	outputWriter := NewOutputWriter(r.options.JSON)
 	// Now output all results in output writers
 	var err error
@@ -197,8 +192,7 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 	gologger.Info().Msgf("Found %d subdomains for %s in %s\n", numberOfSubDomains, domain, duration)
 
 	if r.options.Statistics {
-		gologger.Info().Msgf("Printing source statistics for %s", domain)
-		statistics := r.passiveAgent.GetStatistics()
+		statistics := agent.GetStatistics()
 		// This is a hack to remove the skipped count from the statistics
 		// as we don't want to show it in the statistics.
 		// TODO: Design a better way to do this.
@@ -208,10 +202,22 @@ func (r *Runner) EnumerateSingleDomainWithCtx(ctx context.Context, domain string
 				statistics[source] = stat
 			}
 		}
-		printStatistics(statistics)
+		r.outputMu.Lock()
+		meter.Print(func() {
+			gologger.Info().Msgf("Printing source statistics for %s", domain)
+			printStatistics(statistics)
+		})
+		r.outputMu.Unlock()
 	}
 
 	return sourceMap, nil
+}
+
+// callback runs the result callback, one call at a time across domains.
+func (r *Runner) callback(entry *resolve.HostEntry) {
+	r.callbackMu.Lock()
+	defer r.callbackMu.Unlock()
+	r.options.ResultCallback(entry)
 }
 
 func (r *Runner) filterAndMatchSubdomain(subdomain string) bool {

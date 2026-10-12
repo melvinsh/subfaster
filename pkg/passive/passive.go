@@ -3,6 +3,7 @@ package passive
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 	"time"
@@ -52,6 +53,24 @@ func (a *Agent) EnumerateSubdomainsWithCtx(ctx context.Context, domain string, p
 		cancel()
 	}()
 	return results
+}
+
+// Clone returns an agent with private copies of its sources, so enumerations
+// running at the same time don't share per-run counters. A source holds only
+// its API keys and those counters, so a shallow copy is enough.
+func (a *Agent) Clone() *Agent {
+	sources := make([]subscraping.Source, len(a.sources))
+	for i, source := range a.sources {
+		v := reflect.ValueOf(source)
+		if v.Kind() != reflect.Pointer {
+			sources[i] = source
+			continue
+		}
+		cp := reflect.New(v.Elem().Type())
+		cp.Elem().Set(v.Elem())
+		sources[i] = cp.Interface().(subscraping.Source)
+	}
+	return &Agent{sources: sources}
 }
 
 func (a *Agent) GetStatistics() map[string]subscraping.Statistics {

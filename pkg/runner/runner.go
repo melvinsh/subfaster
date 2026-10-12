@@ -2,12 +2,16 @@ package runner
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/projectdiscovery/gologger"
 	fileutil "github.com/projectdiscovery/utils/file"
@@ -22,6 +26,10 @@ type Runner struct {
 	options        *Options
 	passiveAgent   *passive.Agent
 	resolverClient *resolve.Resolver
+
+	lastAgent  atomic.Pointer[passive.Agent] // most recently finished domain, for GetStatistics
+	callbackMu sync.Mutex                    // one ResultCallback at a time across domains
+	outputMu   sync.Mutex                    // keeps per-domain output and stats tables whole
 }
 
 // NewRunner creates a new runner struct instance by parsing
@@ -82,12 +90,60 @@ func (r *Runner) RunEnumerationWithCtx(ctx context.Context) error {
 	return nil
 }
 
-// EnumerateMultipleDomainsWithCtx enumerates subdomains for multiple domains
-// We keep enumerating subdomains for a given domain until we reach an error
+// EnumerateMultipleDomainsWithCtx enumerates subdomains for multiple domains,
+// up to Options.Threads at a time. Each domain's results are written as one
+// sorted block, in input order. It stops at the first output error.
 func (r *Runner) EnumerateMultipleDomainsWithCtx(ctx context.Context, reader io.Reader, writers []io.Writer) error {
-	var err error
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type job struct {
+		domain string
+		out    bytes.Buffer
+		done   chan struct{}
+	}
+	workers := max(r.options.Threads, 1)
+	slots := make(chan struct{}, workers)
+	// Jobs queue here in input order; the writer below waits for each in turn.
+	pending := make(chan *job, workers)
+
+	// Live "FAST" animation on stderr for the whole batch (no-op when not a
+	// TTY). Only in the default silent mode: log lines would fight the redrawn line.
+	var first string
+	var started, finished atomic.Int64
+	var meter *speedometer
+	if r.options.Silent && !r.options.Verbose {
+		meter = newSpeedometer(func() string {
+			switch n := started.Load(); n {
+			case 0:
+				return ""
+			case 1:
+				return first // written before started was incremented
+			default:
+				return fmt.Sprintf("%d/%d domains", finished.Load(), n)
+			}
+		})
+		meter.start()
+		defer meter.Stop()
+	}
+
+	var writeErr error
+	written := make(chan struct{})
+	go func() {
+		defer close(written)
+		for j := range pending {
+			<-j.done
+			if writeErr == nil {
+				if writeErr = r.writeDomainOutput(j.domain, j.out.Bytes(), writers, meter); writeErr != nil {
+					cancel()
+				}
+			}
+		}
+	}()
+
 	scanner := bufio.NewScanner(reader)
 	ip, _ := regexp.Compile(`^([0-9\.]+$)`)
+scan:
 	for scanner.Scan() {
 		domain := preprocessDomain(scanner.Text())
 		domain = replacer.Replace(domain)
@@ -96,49 +152,84 @@ func (r *Runner) EnumerateMultipleDomainsWithCtx(ctx context.Context, reader io.
 			continue
 		}
 
-		var file *os.File
-		// If the user has specified an output file, use that output file instead
-		// of creating a new output file for each domain. Else create a new file
-		// for each domain in the directory.
-		if r.options.OutputFile != "" {
-			outputWriter := NewOutputWriter(r.options.JSON)
-			file, err = outputWriter.createFile(r.options.OutputFile, true)
-			if err != nil {
-				gologger.Error().Msgf("Could not create file %s for %s: %s\n", r.options.OutputFile, r.options.Domain, err)
-				return err
-			}
-
-			_, err = r.EnumerateSingleDomainWithCtx(ctx, domain, append(writers, file))
-
-			if closeErr := file.Close(); closeErr != nil {
-				gologger.Error().Msgf("Error closing file %s: %s", r.options.OutputFile, closeErr)
-			}
-		} else if r.options.OutputDirectory != "" {
-			outputFile := path.Join(r.options.OutputDirectory, domain)
-			if r.options.JSON {
-				outputFile += ".json"
-			} else {
-				outputFile += ".txt"
-			}
-
-			outputWriter := NewOutputWriter(r.options.JSON)
-			file, err = outputWriter.createFile(outputFile, false)
-			if err != nil {
-				gologger.Error().Msgf("Could not create file %s for %s: %s\n", r.options.OutputFile, r.options.Domain, err)
-				return err
-			}
-
-			_, err = r.EnumerateSingleDomainWithCtx(ctx, domain, append(writers, file))
-
-			if closeErr := file.Close(); closeErr != nil {
-				gologger.Error().Msgf("Error closing file %s: %s", outputFile, closeErr)
-			}
-		} else {
-			_, err = r.EnumerateSingleDomainWithCtx(ctx, domain, writers)
+		select {
+		case slots <- struct{}{}:
+		case <-ctx.Done():
+			break scan
 		}
+		j := &job{domain: domain, done: make(chan struct{})}
+		if started.Load() == 0 {
+			first = domain
+		}
+		started.Add(1)
+		pending <- j
+		go func() {
+			defer func() {
+				finished.Add(1)
+				close(j.done)
+				<-slots
+			}()
+			// Writes to a bytes.Buffer can't fail, so there is no error to handle.
+			_, _ = r.enumerateDomain(ctx, j.domain, []io.Writer{&j.out}, meter)
+		}()
+	}
+	close(pending)
+	<-written
+
+	if writeErr != nil {
+		return writeErr
+	}
+	return scanner.Err()
+}
+
+// writeDomainOutput writes one domain's results to writers and, with -o or
+// -oD, to the output file.
+func (r *Runner) writeDomainOutput(domain string, data []byte, writers []io.Writer, meter *speedometer) error {
+	var file *os.File
+	var err error
+	// If the user has specified an output file, use that output file instead
+	// of creating a new output file for each domain. Else create a new file
+	// for each domain in the directory.
+	if r.options.OutputFile != "" {
+		file, err = NewOutputWriter(r.options.JSON).createFile(r.options.OutputFile, true)
 		if err != nil {
+			gologger.Error().Msgf("Could not create file %s for %s: %s\n", r.options.OutputFile, domain, err)
+			return err
+		}
+	} else if r.options.OutputDirectory != "" {
+		outputFile := path.Join(r.options.OutputDirectory, domain)
+		if r.options.JSON {
+			outputFile += ".json"
+		} else {
+			outputFile += ".txt"
+		}
+		file, err = NewOutputWriter(r.options.JSON).createFile(outputFile, false)
+		if err != nil {
+			gologger.Error().Msgf("Could not create file %s for %s: %s\n", outputFile, domain, err)
 			return err
 		}
 	}
-	return nil
+	if file != nil {
+		writers = append(writers, file)
+		defer func() {
+			if closeErr := file.Close(); closeErr != nil {
+				gologger.Error().Msgf("Error closing file %s: %s", file.Name(), closeErr)
+			}
+		}()
+	}
+
+	r.outputMu.Lock()
+	defer r.outputMu.Unlock()
+	meter.Print(func() {
+		for _, writer := range writers {
+			if writer == nil {
+				continue
+			}
+			if _, err = writer.Write(data); err != nil {
+				gologger.Error().Msgf("Could not write results for %s: %s\n", domain, err)
+				return
+			}
+		}
+	})
+	return err
 }

@@ -40,6 +40,10 @@ func printStatistics(stats map[string]subscraping.Statistics) {
 	}
 }
 
+// GetStatistics returns the source statistics of the most recently finished domain.
 func (r *Runner) GetStatistics() map[string]subscraping.Statistics {
+	if agent := r.lastAgent.Load(); agent != nil {
+		return agent.GetStatistics()
+	}
 	return r.passiveAgent.GetStatistics()
 }

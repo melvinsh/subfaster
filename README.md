@@ -15,6 +15,7 @@ It installs as its **own binary** with its **own config directory**, so it runs 
 
 ### Faster by default
 - **Curated fast sources are the default.** A run uses eight fast, keyless sources (`thc`, `submd`, `crt`, `scanmalware`, `shodanct`, `rapiddns`, `hackertarget`, `sitedossier`) instead of every source. Use `-all` for the full set, or `-fast=false` for subfinder's original default selection.
+- **Parallel domain lists.** `-dL` (or several `-d` domains) enumerates up to 10 domains at once instead of one after another; 8 large domains went from ~55s to ~11s. Output still comes out per domain, sorted, in input order. Tune with `-t` (`-t 1` for the old sequential behavior).
 - **HTTP keep-alive.** Connections are reused instead of a fresh TCP+TLS handshake per request. Sources that paginate heavily (e.g. `thc`) drop from ~32s to ~11s on large domains.
 - **Update check is off by default.** subfinder makes a blocking network call to its update registry on every startup (~1s). subfaster skips it, so startup is ~30ms. Re-enable with `-duc=false`.
 - **Lower default timeout** (10s, was 30s) and **Cloudflare-only resolvers** (`1.1.1.1`, `1.0.0.1`) for `-active`, instead of a long list that includes slow resolvers.
