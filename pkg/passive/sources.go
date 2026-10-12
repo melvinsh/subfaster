@@ -47,7 +47,6 @@ import (
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/shodan"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/shodanct"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/sitedossier"
-	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/submd"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/thc"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/threatbook"
 	"github.com/melvinsh/subfaster/v2/pkg/subscraping/sources/urlscan"
@@ -107,7 +106,6 @@ var AllSources = [...]subscraping.Source{
 	&whoisxmlapi.Source{},
 	&windvane.Source{},
 	&zoomeyeapi.Source{},
-	&submd.Source{},
 }
 
 var NameSourceMap = make(map[string]subscraping.Source, len(AllSources))
