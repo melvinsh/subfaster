@@ -77,6 +77,8 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			}
 
 			if err != nil && ptr.Safe(resp).StatusCode == 403 {
+				// The 403 body is about to be replaced, so drain it first.
+				session.DiscardHTTPResponse(resp)
 				s.requests++
 				resp, err = session.Get(ctx, fmt.Sprintf("https://api.securitytrails.com/v1/domain/%s/subdomains", domain), "", headers)
 			}

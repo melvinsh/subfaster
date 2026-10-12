@@ -4,6 +4,7 @@ package virustotal
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"encoding/json"
@@ -65,20 +66,22 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 			s.requests++
 			resp, err := session.Get(ctx, url, "", map[string]string{"x-apikey": randomApiKey})
 			if err != nil {
+				// The free tier grants 500 requests/day; once it is spent every call
+				// returns 429. Say so instead of a bare "unexpected status code 429".
+				if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+					err = fmt.Errorf("virustotal quota exhausted (HTTP 429); some subdomains for %s may be missing", domain)
+				}
 				results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 				s.errors++
 				session.DiscardHTTPResponse(resp)
 				return
 			}
-			defer func() {
-				if err := resp.Body.Close(); err != nil {
-					results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
-					s.errors++
-				}
-			}()
 
 			var data response
 			err = json.NewDecoder(resp.Body).Decode(&data)
+			// Release each page's body here: a defer inside the loop kept every
+			// page's connection checked out until the whole run finished.
+			session.DiscardHTTPResponse(resp)
 			if err != nil {
 				results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 				s.errors++

@@ -70,13 +70,16 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		tokens := NewTokenManager(s.apiKeys)
 
 		searchURL := fmt.Sprintf("https://api.github.com/search/code?per_page=100&q=%s&sort=created&order=asc", domain)
-		s.enumerate(ctx, searchURL, domainRegexp(domain), tokens, session, results)
+		s.enumerate(ctx, searchURL, domainRegexp(domain), tokens, session, results, 0)
 	}()
 
 	return results
 }
 
-func (s *Source) enumerate(ctx context.Context, searchURL string, domainRegexp *regexp.Regexp, tokens *Tokens, session *subscraping.Session, results chan subscraping.Result) {
+// retries counts the rate-limit retries already spent on this URL. A new URL
+// starts over at zero, so a page that succeeds does not eat into the budget of
+// the pages after it.
+func (s *Source) enumerate(ctx context.Context, searchURL string, domainRegexp *regexp.Regexp, tokens *Tokens, session *subscraping.Session, results chan subscraping.Result, retries int) {
 	select {
 	case <-ctx.Done():
 		return
@@ -106,7 +109,19 @@ func (s *Source) enumerate(ctx context.Context, searchURL string, domainRegexp *
 		tokens.setCurrentTokenExceeded(retryAfterSeconds)
 		session.DiscardHTTPResponse(resp)
 
-		s.enumerate(ctx, searchURL, domainRegexp, tokens, session, results)
+		// Tokens.Get hands the pool out round robin without skipping exceeded
+		// tokens, so without a bound this recursed once per 403 until the stack
+		// overflowed. Give each token one attempt at this URL, then give up.
+		if retries+1 >= len(tokens.pool) {
+			results <- subscraping.Result{
+				Source: s.Name(), Type: subscraping.Error,
+				Error: fmt.Errorf("github rate limit reached on every token, results may be incomplete"),
+			}
+			s.errors.Add(1)
+			return
+		}
+
+		s.enumerate(ctx, searchURL, domainRegexp, tokens, session, results, retries+1)
 		return
 	}
 
@@ -146,7 +161,7 @@ func (s *Source) enumerate(ctx context.Context, searchURL string, domainRegexp *
 				s.errors.Add(1)
 				return
 			}
-			s.enumerate(ctx, nextURL, domainRegexp, tokens, session, results)
+			s.enumerate(ctx, nextURL, domainRegexp, tokens, session, results, 0)
 		}
 	}
 }

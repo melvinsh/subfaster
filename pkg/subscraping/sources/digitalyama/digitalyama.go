@@ -52,17 +52,15 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 		searchURL := fmt.Sprintf("https://api.digitalyama.com/subdomain_finder?domain=%s", domain)
 		s.requests++
 		resp, err := session.Get(ctx, searchURL, "", map[string]string{"x-api-key": randomApiKey})
+		// Registered before the error check: a non-200 reply comes back as a
+		// response and an error together, and returning here would leave that
+		// body undrained. DiscardHTTPResponse ignores a nil response.
+		defer session.DiscardHTTPResponse(resp)
 		if err != nil {
 			results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
 			s.errors++
 			return
 		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				results <- subscraping.Result{Source: s.Name(), Type: subscraping.Error, Error: err}
-				s.errors++
-			}
-		}()
 
 		if resp.StatusCode != 200 {
 			var errResponse struct {
